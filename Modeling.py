@@ -1,22 +1,38 @@
 #!/usr/bin/env python
 # coding: utf-8
-
 import os
+import sys
 import pandas as pd
 import numpy as np
 import keras
 from keras.preprocessing.image import ImageDataGenerator
-from keras.layers import Dense, Conv2D, Flatten, MaxPooling2D
-#from tensorflow.python.keras.preprocessing.image import ImageDataGenerator, load_img
+from keras.layers import Dense, Conv2D, Flatten, MaxPooling2D, Dropout
 import matplotlib.pyplot as plt
 import cv2
 import warnings
 import tensorflow as tf
 from keras.models import Sequential
 from keras.optimizers import Adam
+from config_file_generator import create_config_file
 tf.random.set_seed(42)
 warnings.filterwarnings("ignore")
 
+# Locked variable, does not change with config file
+path = '/home/mlmaster/Code/Ing_ml_P6/dataset/'
+train = 'Train/'
+val = 'Validation/'
+test = 'Test/'
+fullPathTrain = path + train
+fullPathVal = path + val
+fullPathTest = path + test
+
+# For Logs
+save = "/home/mlmaster/Code/Ing_ml_P6/logs/"
+
+#setting the path to the directory containing the pics
+categories = []
+for i in os.listdir(fullPathTrain):
+    categories.append(i)
 
 def load_data(which='Train', categories=categories):
     
@@ -52,25 +68,10 @@ def load_data(which='Train', categories=categories):
     
     return data, label
 
-# Locked variable, does not change with config file
-path = '/home/mlmaster/Code/Ing_ml_P6/dataset/'
-train = 'Train/'
-val = 'Validation/'
-test = 'Test/'
-fullPathTrain = path + train
-fullPathVal = path + val
-fullPathTest = path + test
-
-# For Logs
-save = "/home/mlmaster/Code/Ing_ml_P6/logs/"
-
-#setting the path to the directory containing the pics
-categories = []
-for i in os.listdir(fullPathTrain):
-    categories.append(i)
-
 # Init variables
-config = pd.read_csv('config.csv')
+min_index = int(sys.argv[1])
+max_index = int(sys.argv[2])
+config = create_config_file(min_index, max_index)
 
 
 # -------------------------------------------
@@ -156,12 +157,23 @@ for i in config['Index']:
     # Model Builder
     if model_type == 1:
         model = Sequential()
-        model.add(Conv2D(64, kernel_size=3, activation='relu', input_shape=(img_height,img_width,3)))
-        model.add(Conv2D(32, kernel_size=3, activation='relu', input_shape=(img_height,img_width,3)))
-        model.add(Conv2D(16, kernel_size=3, activation='relu', input_shape=(img_height,img_width,3)))
-        model.add(Conv2D(8, kernel_size=3, activation='relu'))
+        model.add(Conv2D(64, kernel_size=(5, 5), strides=(2, 2),
+                         activation='relu',
+                         input_shape=(img_height,img_width,3)))
+        model.add(MaxPooling2D(pool_size=(2, 2), strides=(1, 1)))
+        model.add(Dropout(0.5))
+        model.add(Conv2D(32, (5, 5), activation='relu'))
+        model.add(MaxPooling2D(pool_size=(2, 2)))
+        model.add(Dropout(0.5))
+        model.add(Conv2D(16, (5, 5), activation='relu'))
+        model.add(MaxPooling2D(pool_size=(2, 2)))
+        model.add(Dropout(0.5))
+        model.add(Conv2D(8, (5, 5), activation='relu'))
+        model.add(MaxPooling2D(pool_size=(2, 2)))
         model.add(Flatten())
-        model.add(Dense(len(categories), activation='softmax'))
+        model.add(Dropout(0.5))
+        model.add(Dense(1000, activation='relu'))
+        model.add(Dense(len(categories), activation='softmax')) 
 
     elif model_type == 2:
         model = Sequential()
@@ -169,11 +181,11 @@ for i in config['Index']:
                          activation='relu',
                          input_shape=(img_height,img_width,3)))
         model.add(MaxPooling2D(pool_size=(2, 2), strides=(2, 2)))
-
+        model.add(Dropout(0.5))
         model.add(Conv2D(64, (5, 5), activation='relu'))
         model.add(MaxPooling2D(pool_size=(2, 2)))
         model.add(Flatten())
-
+        model.add(Dropout(0.5))
         model.add(Dense(1000, activation='relu'))
         model.add(Dense(len(categories), activation='softmax'))
 
@@ -183,18 +195,18 @@ for i in config['Index']:
                          activation='relu',
                          input_shape=(img_height,img_width,3)))
         model.add(MaxPooling2D(pool_size=(2, 2), strides=(2, 2)))
-
+        model.add(Dropout(0.5))
         model.add(Conv2D(16, (5, 5), activation='relu'))
         model.add(MaxPooling2D(pool_size=(2, 2)))
-
+        model.add(Dropout(0.5))
         model.add(Conv2D(32, kernel_size=(5, 5), strides=(1, 1),
                          activation='relu'))
         model.add(MaxPooling2D(pool_size=(2, 2), strides=(2, 2)))
-
+        model.add(Dropout(0.5))
         model.add(Conv2D(64, (5, 5), activation='relu'))
         model.add(MaxPooling2D(pool_size=(2, 2)))
         model.add(Flatten())
-
+        model.add(Dropout(0.5))
         model.add(Dense(1000, activation='relu'))
         model.add(Dense(len(categories), activation='softmax'))
 
@@ -204,14 +216,19 @@ for i in config['Index']:
                          activation='relu',
                          input_shape=(img_height,img_width,3)))
         model.add(MaxPooling2D(pool_size=(2, 2), strides=(1, 1)))
-
+        model.add(Dropout(0.5))
         model.add(Conv2D(32, (5, 5), activation='relu'))
         model.add(MaxPooling2D(pool_size=(2, 2)))
         model.add(Flatten())
-
+        model.add(Dropout(0.5))
         model.add(Dense(1000, activation='relu'))
-        model.add(Dense(len(categories), activation='softmax'))    
+        model.add(Dense(len(categories), activation='softmax'))  
 
+    # Callback
+    callback = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=3,
+                                                mode='min',
+                                                restore_best_weights=True)
+        
     # Optmizer and compilation
     opt = Adam(lr=learning_rate, clipnorm=1.)
     model.compile(loss='binary_crossentropy',
@@ -224,6 +241,7 @@ for i in config['Index']:
                         validation_data=val_generator,
                         steps_per_epoch=steps_per_epoch,
                         validation_steps=validation_steps,
+                        callbacks=[callback],
                         verbose=1)
 
     # Ploting graph
