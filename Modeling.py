@@ -17,6 +17,11 @@ from config_file_generator import create_config_file
 tf.random.set_seed(42)
 warnings.filterwarnings("ignore")
 
+# If this is not set, bug because tf takes too much memory
+physical_devices = tf.config.experimental.list_physical_devices('GPU')
+assert len(physical_devices) > 0, "Not enough GPU hardware devices available"
+config = tf.config.experimental.set_memory_growth(physical_devices[0], True)
+
 # Locked variable, does not change with config file
 path = '/home/mlmaster/Code/Ing_ml_P6/dataset/'
 train = 'Train/'
@@ -72,12 +77,12 @@ def load_data(which='Train', categories=categories):
 min_index = int(sys.argv[1])
 max_index = int(sys.argv[2])
 config = create_config_file(min_index, max_index)
-
+config = config.set_index('Index')
 
 # -------------------------------------------
-for i in config['Index']:
+for i in config.index:
     # Global
-    index = config.loc[i, 'Index']
+    index = i
 
     # For data
     img_height = config.loc[i, 'Img Height']
