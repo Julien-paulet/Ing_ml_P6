@@ -17,12 +17,13 @@ from config_file_generator import create_config_file
 tf.random.set_seed(42)
 warnings.filterwarnings("ignore")
 
-# If this is not set, bug because tf takes too much memory
+# If this is not set, bug because tf takes too much memory (Why ?)
 physical_devices = tf.config.experimental.list_physical_devices('GPU')
 assert len(physical_devices) > 0, "Not enough GPU hardware devices available"
 config = tf.config.experimental.set_memory_growth(physical_devices[0], True)
 
 # Locked variable, does not change with config file
+lowPath = '/home/mlmaster/Code/Ing_ml_P6/'
 path = '/home/mlmaster/Code/Ing_ml_P6/dataset/'
 train = 'Train/'
 val = 'Validation/'
@@ -74,11 +75,18 @@ def load_data(which='Train', categories=categories):
     return data, label
 
 # Init variables
-min_index = int(sys.argv[1])
-max_index = int(sys.argv[2])
-config = create_config_file(min_index, max_index)
-config = config.set_index('Index')
+if str(sys.argv[1]) == 'Full':
+    min_index = int(sys.argv[2])
+    max_index = int(sys.argv[3])
+    config = create_config_file(min_index, max_index)
+    config = config.set_index('Index')
 
+elif str(sys.argv[1]) == 'Perso':
+    config = pd.read_csv(lowPath + 'config_perso_'+ str(sys.argv[2]) + '.csv')
+
+else:
+    print("Error, please enter personalized config by typing 'Perso' and the filename, or enter 'Full' and the range of indexes")
+    exit()
 # -------------------------------------------
 for i in config.index:
     # Global
@@ -89,6 +97,9 @@ for i in config.index:
     img_width = config.loc[i, 'Img Width']
     zca_whitening = config.loc[i, 'Zca Whitening']
     horizontal_flip = config.loc[i, 'Horizontal Flip']
+    rotation_range = config.loc[i, 'Rotation Range']
+    width_shift_range = config.loc[i, 'Width Shift Range']
+    height_shift_range = config.loc[i, 'Height Shift Range']
 
     # For model
     model_type = config.loc[i, 'Model Type']
@@ -102,18 +113,23 @@ for i in config.index:
     dataset = [index, img_height, img_width, batch_size,
                learning_rate, epochs, steps_per_epoch,
                validation_steps, zca_whitening, horizontal_flip,
+               width_shift_range, height_shift_range, height_shift_range,
                model_type]
 
     dataset = pd.DataFrame(dataset).T
     dataset = dataset.rename(columns={0:'Index', 1:'Img Height', 2:'Img Width', 3:'Batch Size',
                                       4:'Learning Rate', 5:'Epochs', 6:'Steps Per Epoch',
                                       7:'validation Steps', 8:'Zca Whitening', 9:'Horizontal Flip',
-                                      10:'Model Type'})
+                                      10:'Rotation Range', 11:'Width Shift Range', 12:'Height Shift Range',
+                                      13:'Model Type'})
 
     # For model
     train_datagen =  ImageDataGenerator(
         zca_whitening=zca_whitening,
         horizontal_flip=horizontal_flip,
+        rotation_range=rotation_range,
+        width_shift_range=width_shift_range,
+        height_shift_range=height_shift_range,
         rescale=1./255
     )
 
@@ -230,8 +246,8 @@ for i in config.index:
         model.add(Dense(len(categories), activation='softmax'))  
 
     # Callback
-    callback = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=3,
-                                                mode='min',
+    callback = tf.keras.callbacks.EarlyStopping(monitor='val_acc', patience=3,
+                                                mode='max',
                                                 restore_best_weights=True)
         
     # Optmizer and compilation
@@ -288,11 +304,11 @@ for i in config.index:
     dataset['Validation Loss'] = val_loss
 
     try:
-        logs = pd.read_csv(save + 'logs.csv')
+        logs = pd.read_csv(save + 'logs2.csv')
         logs = pd.concat([logs, dataset])
-        logs.to_csv(save + 'logs.csv')
+        logs.to_csv(save + 'logs2.csv')
     except:
-        dataset.to_csv(save + 'logs.csv')
+        dataset.to_csv(save + 'logs2.csv')
 
 import keras
 from numba import cuda
