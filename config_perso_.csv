@@ -1,0 +1,2 @@
+,Index,Img Height,Img Width,Batch Size,Learning Rate,Epochs,Steps Per Epoch,validation Steps,Zca Whitening,Horizontal Flip,Model Type,Rotation Range,Width Shift Range,Height Shift Range
+0,0,250,250,20,0.0001,200,600,60,False,True,3,20,0.2,0.2
